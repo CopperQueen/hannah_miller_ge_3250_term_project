@@ -2,11 +2,19 @@
 
 [Back to Main README](./README.md)
 
-This document outlines the steps to create an interactive visualization project combining earthquake data and tectonic plate boundaries using Python, primarily within an iPython Notebook environment.
+This document outlines the steps to create an interactive visualization project combining earthquake data and tectonic plate boundaries using Python, primarily within an iPython Notebook environment. 
 
 ## Project Goal
 
-To fetch, process, analyze, and visualize earthquake data in relation to tectonic plate boundaries, creating both interactive and static maps to demonstrate the correlation between seismicity and plate tectonics.
+The primary goal is to build a foundational system for visualizing and analyzing seismic activity to advance earthquake prediction efforts. This involves:
+
+1.  **Visualization:** Develop maps displaying tectonic plates, historical earthquakes, and dynamically added seismic events from feature tables.
+2.  **Machine Learning for Prediction:** Train ML models using features derived from seismic station activity (paired with ground truth earthquake data, e.g., from USGS) to predict earthquake location and depth.
+3.  **Robust Evaluation:** Evaluate model performance using temporal validation strategies like Leave-One-Year-Out (LOYO) cross-validation to assess generalizability.
+4.  **Scenario Analysis:** Enable experimentation with varying numbers and combinations of seismic stations to understand model robustness under different data availability conditions.
+5.  **Project North Star Goal and Foundation for Forecasting:** Establish the groundwork (data pipelines, feature engineering, modeling framework) for the long-term "North Star" goal of developing a reliable predictive system capable of identifying precursors to large earthquakes.
+
+Clear, informative visualizations will support all project phases, aiding in pattern discovery, model interpretation, and communication of results.
 
 ## Directory Structure
 
@@ -18,15 +26,19 @@ hannah_miller_term_project/
 │
 ├── functions/                  # Directory for Python helper functions
 │   ├── __init__.py
-│   ├── data_fetching.py        # Functions to get earthquake & plate data
-│   ├── data_processing.py      # Functions for cleaning and merging data
-│   ├── spatial_analysis.py     # Functions for proximity analysis, etc.
-│   ├── plotting.py             # Functions for creating maps (interactive/static)
+│   ├── data_fetching.py        # Functions to get earthquake, plate & seismic data
+│   ├── data_processing.py      # Functions for cleaning, merging, feature extraction & file creation
+│   ├── spatial_analysis.py     # Functions for proximity analysis, feature linking etc.
+│   ├── machine_learning.py     # Functions for ML model training, validation, inference
+│   ├── plotting.py             # Functions for creating static maps
 │   └── utils.py                # General utility functions (optional)
 │
 └── resources/                  # Directory for downloaded/saved data & maps
     ├── plate_boundaries/       # Downloaded plate boundary data (e.g., shapefiles)
-    └── earthquake_data/minmagnitude={mag}/        # Downloaded earthquake catalogs by minmagnitude
+    ├── earthquake_data/minmagnitude={mag}/ # Downloaded earthquake catalogs by minmagnitude
+    ├── seismic_data/           # Raw downloaded seismic waveform data
+    ├── feature_files/          # Compressed feature files for ML
+    ├── trained_models/         # Saved trained ML models
     └── static_maps/            # Saved static map images
 ```
 
@@ -40,12 +52,17 @@ hannah_miller_term_project/
     - [x] Create subdirectories: `functions/`, `resources/`, `resources/plate_boundaries/`, `resources/earthquake_data/`, `resources/static_maps/`.
     - [x] Create `functions/__init__.py`.
     - [x] Set up Python environment (e.g., using Conda or venv).
-    - [x] Install necessary libraries: `notebook`, `pandas`, `geopandas`, `requests`, `folium`, `plotly`, `matplotlib`, `shapely`, `rasterio` (if needed for advanced base maps), `cartopy` (for static maps).
+    - [x] Install necessary libraries: `notebook`, `pandas`, `geopandas`, `requests`, `matplotlib`, `shapely`, `rasterio`, `cartopy`, `obspy` (for seismic data), `scikit-learn`, `h5py`/`pyarrow` (for feature files), potentially `tensorflow` or `pytorch`.
         ```bash
         # Example using conda
-        conda create -n geo_env python=3
+        conda create -n geo_env python=3.9 # Or later
         conda activate geo_env
-        conda install -c conda-forge notebook pandas geopandas requests folium plotly matplotlib shapely cartopy rasterio
+        # Install core geo/plotting libs
+        conda install -c conda-forge notebook pandas geopandas requests matplotlib shapely cartopy rasterio
+        # Install seismic lib
+        conda install -c conda-forge obspy
+        # Install ML libs
+        conda install -c conda-forge scikit-learn h5py pyarrow # Add tensorflow/pytorch if needed
         ```
     - [x] Initialize the main iPython Notebook (`earthquake_plate_notebook.ipynb`).
 
@@ -59,6 +76,13 @@ hannah_miller_term_project/
     - [ ] **Function:** `load_plate_boundaries(filepath)`.
         - Use `geopandas` to read plate boundary data (e.g., from a Shapefile downloaded from sources like Peter Bird's dataset or GPlates). Ensure the file is placed in `resources/plate_boundaries/`.
         - Return a GeoDataFrame.
+        - Return a GeoDataFrame.
+    - [ ] **Function:** `fetch_seismic_data(stations, start_time, end_time, data_dir='resources/seismic_data/')`.
+        - Use `obspy` client (e.g., `FDSN client`) to download waveform data for specified stations and time range.
+        - Save raw data locally (e.g., in MiniSEED format) in `data_dir`.
+        - Handle potential download errors and data gaps.
+        - Return paths to downloaded files or confirmation.
+
 
 - [ ] **3. Data Processing (`functions/data_processing.py`):**
     - [ ] **Function:** `process_earthquake_data(df)`.
@@ -71,6 +95,19 @@ hannah_miller_term_project/
         - Ensure the plate boundary GeoDataFrame has the correct CRS. If not, reproject it to match the earthquake data (e.g., `EPSG:4326`).
         - Select relevant columns if necessary.
         - Return the processed GeoDataFrame.
+        - Return the processed GeoDataFrame.
+    - [ ] **Function:** `process_seismic_waveforms(file_paths_or_stream)`.
+        - Read raw seismic data (e.g., using `obspy.read()`).
+        - Apply necessary preprocessing: detrending, filtering, resampling, instrument correction.
+        - Extract relevant features (e.g., spectral properties, amplitudes, STA/LTA, polarization attributes) over defined time windows.
+        - Return a structured format (e.g., Pandas DataFrame) containing features, timestamps, and station info.
+    - [ ] **Function:** `create_feature_file(features_df, output_path)`.
+        - Takes the DataFrame of extracted seismic features.
+        - Saves the features to a compressed, efficient format (e.g., HDF5 using `h5py` or Parquet using `pyarrow`).
+        - Structure the file for easy loading during ML training/inference (e.g., datasets for features and labels if applicable).
+        - Ensure metadata (station info, feature descriptions, processing steps) is included.
+        - Example path: `resources/feature_files/seismic_features_YYYYMMDD.h5`
+
 
 - [ ] **4. Spatial Analysis (`functions/spatial_analysis.py`):**
     - [ ] **Function:** `calculate_distance_to_boundary(quake_gdf, plate_gdf)`.
@@ -81,49 +118,101 @@ hannah_miller_term_project/
         - Categorize earthquakes based on their proximity to boundaries (e.g., 'Near Boundary', 'Far Field').
         - *Optional Advanced:* Determine the type of the nearest boundary segment (convergent, divergent, transform) if the plate data includes this information.
         - Return the updated GeoDataFrame with categories.
+        - Return the updated GeoDataFrame with categories.
+    - [ ] **Function:** `analyze_seismic_features_spatially(seismic_features_df, quake_gdf, plate_gdf)`.
+        - Link seismic features (from specific stations/times) to nearby earthquakes or plate boundary segments.
+        - This might involve temporal and spatial proximity calculations.
+        - Could add flags/labels to features based on proximity to significant events/structures.
+        - Return the enriched seismic features DataFrame or related analysis results.
 
-- [ ] **5. Visualization (`functions/plotting.py`):**
-    - [ ] **Function:** `plot_map(quake_gdf, plate_gdf, interactive=True, output_path=None, ...)`.
-        - **Core Logic:** Takes processed GeoDataFrames and a boolean `interactive` flag.
-        - **If `interactive=True`:**
-            - Use `folium` or `plotly.graph_objects.Scattergeo` / `plotly.express.scatter_geo`.
-            - Create a base map.
-            - Add plate boundaries (lines/polygons).
-            - Add earthquake points (customize markers by magnitude/depth, add tooltips).
-            - Return the Folium map object or Plotly figure object.
-        - **If `interactive=False`:**
-            - Use `matplotlib` with `geopandas.plot()` and potentially `cartopy` for better map projections and features (coastlines, borders).
-            - Create axes with a map projection.
-            - Plot plate boundaries.
-            - Plot earthquake points.
-            - Customize appearance (colors, sizes, legend, title).
-            - If `output_path` is provided (e.g., `resources/static_maps/map.png`), save the figure using `plt.savefig()`.
-            - Return the Matplotlib axes object.
+- [ ] **5. Machine Learning (`functions/machine_learning.py`):**
+    - [ ] **Goal:** Train models using features derived from seismic station activity to predict earthquake location (latitude, longitude) and depth, evaluating performance rigorously.
+    - [ ] **Data Preparation:**
+        - Load compressed feature file(s) (`resources/feature_files/`).
+        - Align seismic features temporally with ground truth earthquake data (location, depth from USGS catalog).
+        - Define features (input) and target variables (output: lat, lon, depth).
+        - Split data into training, validation, and test sets using temporal criteria (e.g., train on earlier years, validate/test on later years) to prevent data leakage.
+    - [ ] **Model Training:**
+        - Select appropriate ML model(s) (e.g., RandomForest, LSTM, CNN depending on features/task).
+        - Train model(s) on the training dataset.
+        - Tune hyperparameters.
+    - [ ] **Model Validation:**
+        - Evaluate model performance on the validation set using appropriate metrics for regression (e.g., Mean Absolute Error, RMSE for location/depth) and potentially classification if predicting occurrence.
+        - **Primary Strategy: Leave-One-Year-Out (LOYO) Cross-Validation:** Systematically train on all years except one and test on the held-out year to assess temporal generalizability. Repeat for multiple held-out years.
+        - Analyze performance variations across different time periods.
+    - [ ] **Station Robustness Analysis:**
+        - Re-train/evaluate models using different subsets of seismic stations (e.g., reducing station count, using specific geographic combinations).
+        - Analyze the impact of station availability/loss on prediction accuracy.
+    - [ ] **Inference:**
+    - [ ] **Inference & Feature Importance:**
+        - Use the final trained model to make predictions on the held-out test set.
+        - Analyze feature importance (e.g., using SHAP or model-specific methods) to understand which seismic features are most predictive. This informs the long-term goal of identifying potential precursors.
+    - [ ] **Model Saving:**
+        - Save the best performing model(s), associated data scalers, and validation results (including LOYO performance) to `resources/trained_models/`.
 
-- [ ] **6. iPython Notebook Assembly (`earthquake_plate_notebook.ipynb`):**
+- [ ] **6. Visualization (`functions/plotting.py`):**
+    - [ ] **Function:** `plot_static_map(quake_gdf, plate_gdf, seismic_stations_gdf=None, feature_events_gdf=None, ml_predictions_gdf=None, output_path=None, ...)`.
+        - **Core Logic:** Takes processed GeoDataFrames for creating static maps.
+        - Use `matplotlib` with `geopandas.plot()` and potentially `cartopy`.
+        - Create axes with a map projection.
+        - Plot plate boundaries.
+        - Plot earthquake points (customize markers by magnitude/depth).
+        - *Enhancement:* Plot seismic station locations (if `seismic_stations_gdf` provided).
+        - *Enhancement:* Incorporate visualizations of feature-derived events or ML prediction results (e.g., predicted locations, error vectors).
+        - Customize appearance (colors, sizes, legend, title).
+        - If `output_path` is provided (e.g., `resources/static_maps/map.png`), save the figure using `plt.savefig()`.
+        - Return the Matplotlib axes object.
+
+- [ ] **7. iPython Notebook Assembly (`earthquake_plate_notebook.ipynb`):**
     - [ ] **Structure:** Use Markdown cells extensively to explain each step: introduction, setup, data loading, processing, analysis methods, visualization choices, and conclusions.
     - [ ] **Import Functions:** Import the necessary functions from your `functions/` modules.
     - [ ] **Workflow:**
-        - Call data fetching functions.
-        - Call data processing functions.
-        - Display snippets of processed data (e.g., `gdf.head()`, `gdf.info()`, `gdf.crs`).
-        - Call spatial analysis functions.
-        - Display analysis results (e.g., statistics, counts per category).
-        - Call the `plot_map` function:
-            - Once with `interactive=True` to display the interactive map directly in the notebook.
-            - Once with `interactive=False` and an `output_path` to generate and save a static map image. Display the static image in the notebook using Markdown `![Static Map](resources/static_maps/map.png)`.
+        - **Setup & Imports:** Import all necessary functions from modules.
+        - **Data Acquisition:** Call functions to fetch earthquake, plate, and seismic data.
+        - **Data Processing:**
+            - Process earthquake and plate data.
+            - Process seismic waveforms and extract features.
+            - Create the compressed feature file.
+            - Display snippets of processed data.
+        - **Spatial Analysis:**
+            - Analyze earthquake proximity to boundaries.
+            - Analyze seismic features spatially (linking to events/locations).
+            - Display analysis results.
+        - **Machine Learning:**
+            - Load feature file.
+            - Prepare data for predicting earthquake location/depth from station features.
+            - Train selected model(s).
+            - Perform and document Leave-One-Year-Out (LOYO) cross-validation results.
+            - Conduct station robustness experiments and report findings.
+            - Run inference on the test set and analyze feature importance.
+        - **Visualization:**
+            - Call `plot_static_map` showing historical quakes, plates, stations.
+            - Create static maps visualizing key ML results (e.g., prediction accuracy, feature importance).
+            - Display all maps/plots within the notebook.
     - [ ] **Interpretation:** Include Markdown cells discussing the results, the visual correlation observed, limitations, and potential future work.
+
+        - **Interpretation:** Include Markdown cells discussing:
+            - Visual correlations observed.
+            - ML model performance (LOYO results, location/depth accuracy).
+            - Impact of station robustness tests.
+            - Key predictive features identified and their potential link to the forecasting goal.
+            - Overall limitations and directions for future work (e.g., refining features for precursor identification).
 
 ## Key Libraries & Concepts
 
-*   **Pandas:** Data manipulation and analysis (DataFrames).
-*   **GeoPandas:** Geospatial data manipulation (GeoDataFrames), spatial operations, plotting.
-*   **Shapely:** Underlying library for geometric objects used by GeoPandas.
-*   **Requests:** Fetching data from web APIs.
-*   **Folium / Plotly:** Creating interactive maps.
-*   **Matplotlib / Cartopy:** Creating static maps with proper geographic projections.
-*   **iPython Notebook:** Interactive development and presentation environment.
-*   **Coordinate Reference Systems (CRS):** Ensuring spatial data aligns correctly.
-*   **Spatial Joins / Overlays / Proximity Analysis:** Core geospatial analysis techniques.
+*   **Pandas:** Data manipulation (DataFrames).
+*   **GeoPandas:** Geospatial data manipulation (GeoDataFrames), spatial operations.
+*   **Shapely:** Geometric objects.
+*   **Requests:** Fetching web API data (USGS).
+*   **ObsPy:** Fetching and processing seismic waveform data (FDSN).
+*   **H5py / PyArrow:** Reading/writing compressed data formats (HDF5/Parquet).
+*   **Scikit-learn:** Machine learning algorithms, preprocessing, validation.
+*   **(Optional) TensorFlow / PyTorch:** Deep learning frameworks.
+*   **Matplotlib / Cartopy:** Static maps with geographic projections.
+*   **iPython Notebook:** Interactive development environment.
+*   **CRS:** Coordinate Reference Systems.
+*   **Spatial Analysis:** Proximity, joins, overlays.
+*   **Time Series Analysis:** Handling temporal data, feature extraction from waveforms.
+*   **Machine Learning Validation:** Temporal Cross-validation (Leave-One-Year-Out), Regression Metrics (MAE, RMSE), Feature Importance Analysis.
 
 This plan provides a structured approach to building your project. Remember to commit your code regularly and test functions as you build them.
