@@ -25,16 +25,20 @@ hannah_miller_term_project/
 ├── earthquake_plate_notebook.ipynb # The main iPython notebook
 │
 ├── functions/                  # Directory for Python helper functions
-│   ├── __init__.py
-│   ├── data_fetching.py        # Functions to get earthquake, plate & seismic data
+│   ├── __init__.py             # Makes 'functions' a package
+│   ├── data_fetching/          # Sub-package for data acquisition functions
+│   │   ├── __init__.py         # Makes 'data_fetching' a package
+│   │   ├── earthquake_data.py  # Function to fetch USGS earthquake data
+│   │   └── plate_data.py       # Function to fetch and process plate boundary data
 │   ├── data_processing.py      # Functions for cleaning, merging, feature extraction & file creation
 │   ├── spatial_analysis.py     # Functions for proximity analysis, feature linking etc.
+│   ├── stream_station_timeseries.py # Functions for seismic time series processing
 │   ├── machine_learning.py     # Functions for ML model training, validation, inference
 │   ├── plotting.py             # Functions for creating static maps
 │   └── utils.py                # General utility functions (optional)
 │
 └── resources/                  # Directory for downloaded/saved data & maps
-    ├── plate_boundaries/       # Downloaded plate boundary data (e.g., shapefiles)
+    ├── plate_boundaries/       # Processed plate boundary data (e.g., combined_plate_boundaries.shp)
     ├── earthquake_data/minmagnitude={mag}/ # Downloaded earthquake catalogs by minmagnitude
     ├── seismic_data/           # Raw downloaded seismic waveform data
     ├── feature_files/          # Compressed feature files for ML
@@ -66,22 +70,30 @@ hannah_miller_term_project/
         ```
     - [x] Initialize the main iPython Notebook (`earthquake_plate_notebook.ipynb`).
 
-- [ ] **2. Data Acquisition (`functions/data_fetching.py`):**
-    - [x] **Function:** `fetch_and_load_earthquake_data(start_date, end_date, min_magnitude, force_download=False, max_workers=10)`.
-        - Downloads earthquake data from USGS API day-by-day using parallel requests (`concurrent.futures`).
-        - Saves each day's data locally in `resources/earthquake_data/minmagnitude={mag}/earthquakes-YYYY-MM-DD.geojson`.
-        - Skips download if daily file exists (unless `force_download=True`).
-        - Loads all relevant daily GeoJSON files and concatenates them into a single GeoDataFrame.
-        - Handles request errors and manages local file storage.
-    - [ ] **Function:** `load_plate_boundaries(filepath)`.
-        - Use `geopandas` to read plate boundary data (e.g., from a Shapefile downloaded from sources like Peter Bird's dataset or GPlates). Ensure the file is placed in `resources/plate_boundaries/`.
-        - Return a GeoDataFrame.
-        - Return a GeoDataFrame.
-    - [ ] **Function:** `fetch_seismic_data(stations, start_time, end_time, data_dir='resources/seismic_data/')`.
-        - Use `obspy` client (e.g., `FDSN client`) to download waveform data for specified stations and time range.
-        - Save raw data locally (e.g., in MiniSEED format) in `data_dir`.
-        - Handle potential download errors and data gaps.
-        - Return paths to downloaded files or confirmation.
+- [ ] **2. Data Acquisition (`functions/data_fetching/` package):**
+    - [x] **Module:** `functions/data_fetching/earthquake_data.py`
+        - **Function:** `fetch_and_load_earthquake_data(start_date, end_date, min_magnitude, force_download=False, max_workers=10)`.
+            - Downloads earthquake data from USGS API day-by-day using parallel requests (`concurrent.futures`).
+            - Saves each day's data locally in `resources/earthquake_data/minmagnitude={mag}/earthquakes-YYYY-MM-DD.geojson`.
+            - Skips download if daily file exists (unless `force_download=True`).
+            - Loads all relevant daily GeoJSON files and concatenates them into a single GeoDataFrame.
+            - Handles request errors and manages local file storage. Uses `logging`.
+    - [x] **Module:** `functions/data_fetching/plate_data.py`
+        - **Function:** `load_plate_boundaries()`.
+            - Checks for `ridge.shp`, `transform.shp`, `trench.shp` in `resources/plate_boundaries/`.
+            - If any are missing, downloads plate boundary zip archive from Humanitarian Data Exchange (HDX).
+            - Extracts required components for the three shapefiles (`ridge.*`, `transform.*`, `trench.*`).
+            - Loads the three individual shapefiles into GeoDataFrames.
+            - Concatenates the three GeoDataFrames.
+            - Saves the combined data to `resources/plate_boundaries/combined_plate_boundaries.shp`.
+            - Cleans up (deletes) the individual extracted shapefile components.
+            - Returns the combined GeoDataFrame. Uses `logging`.
+    - [ ] **Module:** `functions/data_fetching/seismic_data.py` (Placeholder for future implementation)
+        - **Function:** `fetch_seismic_data(stations, start_time, end_time, data_dir='resources/seismic_data/')`.
+            - Use `obspy` client (e.g., `FDSN client`) to download waveform data for specified stations and time range.
+            - Save raw data locally (e.g., in MiniSEED format) in `data_dir`.
+            - Handle potential download errors and data gaps.
+            - Return paths to downloaded files or confirmation.
 
 
 - [ ] **3. Data Processing (`functions/data_processing.py`):**
@@ -165,10 +177,10 @@ hannah_miller_term_project/
 
 - [ ] **7. iPython Notebook Assembly (`earthquake_plate_notebook.ipynb`):**
     - [ ] **Structure:** Use Markdown cells extensively to explain each step: introduction, setup, data loading, processing, analysis methods, visualization choices, and conclusions.
-    - [ ] **Import Functions:** Import the necessary functions from your `functions/` modules.
+    - [ ] **Import Functions:** Import the necessary functions from your `functions` package (e.g., `from functions.data_fetching import load_plate_boundaries`).
     - [ ] **Workflow:**
-        - **Setup & Imports:** Import all necessary functions from modules.
-        - **Data Acquisition:** Call functions to fetch earthquake, plate, and seismic data.
+        - **Setup & Imports:** Import all necessary functions (e.g., `from functions.data_fetching import fetch_and_load_earthquake_data, load_plate_boundaries`).
+        - **Data Acquisition:** Call functions to fetch/load earthquake and plate data. Call seismic fetching function when implemented.
         - **Data Processing:**
             - Process earthquake and plate data.
             - Process seismic waveforms and extract features.
