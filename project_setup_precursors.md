@@ -1,0 +1,145 @@
+# Project Setup Precursors
+
+## Setup Flowchart
+
+```mermaid
+graph TD
+    %%{init: { 'themeVariables': { 'nodeBorder': '#666', 'clusterBorder': '#666' }}}%%
+    %% Main Sections as Subgraphs
+
+    subgraph Step1 ["1: Install VS Code"]
+        direction TB
+        A[Download & Install VS Code];
+    end
+
+    subgraph Step2 ["2: Install Extensions"]
+        direction TB
+        B1[Markdown Preview Github Styling];
+        B2[Markdown Preview Mermaid Support];
+        B3[Roo Code];
+    end
+
+    subgraph Step3 ["3: API Key --> Roo Code"]
+        direction TB
+
+
+        subgraph S3_1 [3.1 Login]
+            direction TB
+            C1[Go to Google AI Studio];
+            C2[Use Personal Google Account if needed];
+            C1 --> C2;
+        end
+
+        subgraph S3_2 [3.2 Generate API Key]
+            direction TB
+            D1[Accept Terms];
+            D2[Create & Copy API Key];
+            D1 --> D2;
+        end
+
+        subgraph S3_3 [3.3 Configure RooCode in VS Code]
+            direction TB
+            E1[Select Google Gemini Provider];
+            E2[Paste API Key];
+            E3[Choose Model: Gemini 2.5 Exp Pro];
+            E4["Rename Model (Optional)"];
+            E5[Set Permissions: Auto-approve read];
+            E1 --> E2 --> E3 --> E4 --> E5;
+        end
+
+        subgraph S3_4 [3.4 Enable Billing for API Access]
+            direction TB
+            F1[Upgrade to Tier 1];
+            F2[Add Billing Account & Accept Terms for $300 free credits];
+            F3[Associate Billing Account with Project];
+            F4[Confirm Tier 1 Status];
+            F1 --> F2 --> F3 --> F4;
+        end
+
+        %% Connect Sub-steps within Step 3
+        S3_1 --> S3_2 --> S3_3 --> S3_4;
+    end
+
+    %% Connect Main Steps
+    Step1 --> Step2 --> Step3;
+
+    Step3 --> Z([Setup Complete]);
+
+    %% Styling
+    %% Subgraph Backgrounds
+    style Step1 fill:#E0F2F7,color:#000,stroke:#666 %% Light Blue
+    style Step2 fill:#E8F5E9,color:#000,stroke:#666 %% Light Green
+    style Step3 fill:#F3E5F5,color:#000,stroke:#666 %% Light Lavender
+    style S3_1 fill:#FCE4EC,color:#000,stroke:#666 %% Light Pink
+    style S3_2 fill:#FFE0B2,color:#000,stroke:#666 %% Light Orange
+    style S3_3 fill:#E0F7FA,color:#000,stroke:#666 %% Light Cyan
+    style S3_4 fill:#F5F5F5,color:#000,stroke:#666
+
+    %% Individual Node Styling (Smallest Boxes)
+    style A fill:#FAFAFA,stroke:#666,color:#000
+    style B1 fill:#FAFAFA,stroke:#666,color:#000
+    style B2 fill:#FAFAFA,stroke:#666,color:#000
+    style B3 fill:#FAFAFA,stroke:#666,color:#000
+    style C1 fill:#FAFAFA,stroke:#666,color:#000
+    style C2 fill:#FAFAFA,stroke:#666,color:#000
+    style D1 fill:#FAFAFA,stroke:#666,color:#000
+    style D2 fill:#FAFAFA,stroke:#666,color:#000
+    style E1 fill:#FAFAFA,stroke:#666,color:#000
+    style E2 fill:#FAFAFA,stroke:#666,color:#000
+    style E3 fill:#FAFAFA,stroke:#666,color:#000
+    style E4 fill:#FAFAFA,stroke:#666,color:#000
+    style E5 fill:#FAFAFA,stroke:#666,color:#000
+    style F1 fill:#FAFAFA,stroke:#666,color:#000
+    style F2 fill:#FAFAFA,stroke:#666,color:#000
+    style F3 fill:#FAFAFA,stroke:#666,color:#000
+    style F4 fill:#FAFAFA,stroke:#666,color:#000
+    style Z fill:#FAFAFA,stroke:#666,color:#000
+```
+
+This guide outlines the initial steps required to prepare your development environment before beginning active coding.
+
+---
+
+## 1. Install Visual Studio Code
+
+Download and install [VS Code](https://code.visualstudio.com/), our primary code editor for the project.
+
+---
+
+## 2. Install Essential VS Code Extensions
+
+To enhance Markdown rendering and integrate AI-assisted coding, install the following extensions via the Extensions panel (`Ctrl+Shift+X` or `Cmd+Shift+X` on Mac):
+
+- **Markdown Preview Github Styling**: Adds rich previews for Markdown documents, including diagrams.
+- **Markdown Preview Mermaid Support**: Enables support for Mermaid.js diagrams in Markdown.
+- **Roo Code**: A coding assistant that connects to LLMs like Google Gemini. RooCode can analyze your codebase, make edits, and assist with development when given the right permissions.
+
+---
+
+## 3. Set Up Google AI Studio and API Access
+
+1. **Login**
+   - Go to [Google AI Studio](https://makersuite.google.com/).
+   - Use a **personal Google account** if your school account has project restrictions.
+
+2. **Generate API Key**
+   - Accept terms and create an API key.
+   - Copy the key for use in VS Code.
+
+3. **Configure RooCode in VS Code**
+   - Open settings and select **Google Gemini** as the provider.
+   - Paste the API key.
+   - Choose model: **Gemini 2.5 Experimental Pro (325)**.
+   - Rename the model to: `Google-Gemini-2.5-Pro-Exp-03-25` (optional).
+   - Set permissions to: **Auto-approve read operations only**.
+
+4. **Enable Billing for API Access**
+   - Upgrade to **Tier 1** in Google Cloud.
+   - Add a billing account and accept the terms.
+   - You'll receive **$300 in free credits** (90-day trial).
+   - Associate the billing account with your API project.
+   - Confirm you're on **Tier 1** to avoid rate limits.
+
+---
+
+You’re now ready to begin development with full Markdown support and LLM integration via RooCode and Google Gemini.
