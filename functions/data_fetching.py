@@ -32,7 +32,9 @@ def _download_single_day(
     """
     day_str = current_date.strftime('%Y-%m-%d')
     filename = f"earthquakes-{day_str}.geojson"
-    file_path = os.path.join(DATA_DIR, filename)
+    magnitude_dir = os.path.join(DATA_DIR, f"minmagnitude={min_magnitude}")
+    os.makedirs(magnitude_dir, exist_ok=True) # Ensure directory exists
+    file_path = os.path.join(magnitude_dir, filename)
 
     # Define start and end times for the API query (full day)
     day_start_time_str = f"{day_str}T00:00:00"
@@ -126,7 +128,8 @@ def fetch_and_load_earthquake_data(
         return None
 
     print(f"Processing earthquake data from {start_dt} to {end_dt} (inclusive)...")
-    os.makedirs(DATA_DIR, exist_ok=True)
+    magnitude_dir = os.path.join(DATA_DIR, f"minmagnitude={min_magnitude}")
+    os.makedirs(magnitude_dir, exist_ok=True) # Ensure the specific magnitude directory exists
 
     # --- Identify Dates to Download ---
     all_dates_in_range = [start_dt + timedelta(days=i) for i in range((end_dt - start_dt).days + 1)]
@@ -136,7 +139,9 @@ def fetch_and_load_earthquake_data(
     for current_date in all_dates_in_range:
         day_str = current_date.strftime('%Y-%m-%d')
         filename = f"earthquakes-{day_str}.geojson"
-        file_path = os.path.join(DATA_DIR, filename)
+        # Construct path within the magnitude-specific directory
+        magnitude_dir = os.path.join(DATA_DIR, f"minmagnitude={min_magnitude}")
+        file_path = os.path.join(magnitude_dir, filename)
         all_expected_files.append(file_path)
 
         if not os.path.exists(file_path) or force_download:
@@ -223,7 +228,7 @@ def fetch_and_load_earthquake_data(
 # Example usage
 if __name__ == "__main__":
     end_test = date.today() - timedelta(days=1)
-    start_test = end_test - timedelta(days=365 * 1) # Default load the last 1 years
+    start_test = end_test - timedelta(days=365 * 1.2) # Default load the last 1 years
     start_run_time = time.time()
     earthquake_gdf_small_range = fetch_and_load_earthquake_data(
         start_date=start_test,
