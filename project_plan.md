@@ -33,7 +33,7 @@ hannah_miller_term_project/
 
 ## Detailed Steps
 
-- [ ] **1. Project Setup:**
+- [x] **1. Project Setup:**
     - [x] Create the main project directory (`hannah_miller_term_project`).
     - [x] Create subdirectories: `functions/`, `resources/`, `resources/plate_boundaries/`, `resources/earthquake_data/`, `resources/static_maps/`.
     - [x] Create `functions/__init__.py`.
@@ -45,14 +45,15 @@ hannah_miller_term_project/
         conda activate geo_env
         conda install -c conda-forge notebook pandas geopandas requests folium plotly matplotlib shapely cartopy rasterio
         ```
-    - [ ] Initialize the main iPython Notebook (`earthquake_plate_notebook.ipynb`).
+    - [x] Initialize the main iPython Notebook (`earthquake_plate_notebook.ipynb`).
 
 - [ ] **2. Data Acquisition (`functions/data_fetching.py`):**
-    - [ ] **Function:** `fetch_earthquake_data(start_time, end_time, min_magnitude, ...)`.
-        - Use `requests` to query the USGS Earthquake Catalog API (or similar).
-        - Handle potential API errors and pagination.
-        - Return data ideally as a Pandas DataFrame.
-        - *Alternative:* Function to load data from a downloaded file (e.g., CSV).
+    - [x] **Function:** `fetch_and_load_earthquake_data(start_date, end_date, min_magnitude, force_download=False, max_workers=10)`.
+        - Downloads earthquake data from USGS API day-by-day using parallel requests (`concurrent.futures`).
+        - Saves each day's data locally in `resources/earthquake_data/minmagnitude={mag}/earthquakes-YYYY-MM-DD.geojson`.
+        - Skips download if daily file exists (unless `force_download=True`).
+        - Loads all relevant daily GeoJSON files and concatenates them into a single GeoDataFrame.
+        - Handles request errors and manages local file storage.
     - [ ] **Function:** `load_plate_boundaries(filepath)`.
         - Use `geopandas` to read plate boundary data (e.g., from a Shapefile downloaded from sources like Peter Bird's dataset or GPlates). Ensure the file is placed in `resources/plate_boundaries/`.
         - Return a GeoDataFrame.
