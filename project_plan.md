@@ -27,7 +27,7 @@ hannah_miller_term_project/
 ├── functions/                  # Directory for Python helper functions
 │   ├── __init__.py             # Makes 'functions' a package
 │   ├── data_fetching/          # Sub-package for data acquisition functions
-│   │   ├── __init__.py         # Makes 'data_fetching' a package
+│   │   ├── [x] __init__.py         # Makes 'data_fetching' a package
 │   │   ├── earthquake_data.py  # Function to fetch USGS earthquake data
 │   │   ├── plate_data.py       # Function to fetch and process plate boundary data
 │   │   └── natural_earth_downloader.py # Function to download Natural Earth boundaries
@@ -96,7 +96,7 @@ hannah_miller_term_project/
             - Creates the output directory if it doesn't exist.
             - Saves files to `resources/natural_earth_boundaries/`.
             - Skips download if files already exist. Uses `logging`.
-    - [ ] **Module:** `functions/data_fetching/seismic_data.py` (Placeholder for future implementation)
+    - [x] **Module:** `functions/data_fetching/seismic_data.py` (Initial implementation complete)
         - **Function:** `fetch_seismic_data(stations, start_time, end_time, data_dir='resources/seismic_data/')`.
             - Use `obspy` client (e.g., `FDSN client`) to download waveform data for specified stations and time range.
             - Save raw data locally (e.g., in MiniSEED format) in `data_dir`.
