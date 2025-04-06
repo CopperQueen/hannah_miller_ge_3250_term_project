@@ -1,5 +1,7 @@
 # Project Plan: Interactive Earthquake and Tectonic Plate Visualization
 
+[Back to Main README](./README.md)
+
 This document outlines the steps to create an interactive visualization project combining earthquake data and tectonic plate boundaries using Python, primarily within an iPython Notebook environment.
 
 ## Project Goal

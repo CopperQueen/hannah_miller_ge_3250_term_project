@@ -1,5 +1,7 @@
 # Project Setup Precursors
 
+[Back to Main README](./README.md)
+
 ## Setup Flowchart
 
 ```mermaid
