@@ -6,7 +6,10 @@ import pandas as pd # Need pandas for concatenation
 from datetime import datetime, timedelta, date # Import date
 import time
 import concurrent.futures # Added for threading
+import logging
 
+# Configure logging (optional, basic configuration)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 # Define the path for storing earthquake data
 DATA_DIR = os.path.join("resources", "earthquake_data")
 
@@ -85,7 +88,8 @@ def fetch_and_load_earthquake_data(
     end_date: str | date | None = None,
     min_magnitude: float = 1.0,
     force_download: bool = False,
-    max_workers: int = 10 # Max parallel downloads
+    max_workers: int = 10, # Max parallel downloads
+    target_crs: str = "EPSG:4326" # Target CRS for the final GeoDataFrame
 ) -> gpd.GeoDataFrame | None:
     """
     Fetches earthquake data from USGS day-by-day for the specified period using
@@ -101,11 +105,13 @@ def fetch_and_load_earthquake_data(
         min_magnitude: Minimum earthquake magnitude. Defaults to 1.0.
         force_download: If True, always download fresh data for each day in the range,
                         overwriting corresponding local files.
-        max_workers: Maximum number of parallel download threads.
+      max_workers: Maximum number of parallel download threads.
+      target_crs: The target Coordinate Reference System for the output GeoDataFrame.
+                  Defaults to "EPSG:4326".
 
-    Returns:
-        A GeoDataFrame containing the earthquake data for the entire period,
-        or None if fetching/loading fails or no data is found.
+  Returns:
+      A GeoDataFrame containing the earthquake data for the entire period, projected
+      to the target_crs, or None if fetching/loading fails or no data is found.
     """
     # --- Parameter Handling and Date Conversion ---
     # (Same as before)
@@ -124,10 +130,10 @@ def fetch_and_load_earthquake_data(
         start_dt = start_date
 
     if start_dt > end_dt:
-        print(f"Error: Start date ({start_dt}) cannot be after end date ({end_dt}).")
+        logging.error(f"Start date ({start_dt}) cannot be after end date ({end_dt}).")
         return None
 
-    print(f"Processing earthquake data from {start_dt} to {end_dt} (inclusive)...")
+    logging.info(f"Processing earthquake data from {start_dt} to {end_dt} (inclusive)...")
     magnitude_dir = os.path.join(DATA_DIR, f"minmagnitude={min_magnitude}")
     os.makedirs(magnitude_dir, exist_ok=True) # Ensure the specific magnitude directory exists
 
@@ -149,7 +155,7 @@ def fetch_and_load_earthquake_data(
 
     # --- Parallel Download ---
     if dates_to_download:
-        print(f"Need to download data for {len(dates_to_download)} days (using up to {max_workers} workers)...")
+        logging.info(f"Need to download data for {len(dates_to_download)} days (using up to {max_workers} workers)...")
         download_results = {}
         # Using ThreadPoolExecutor for I/O-bound tasks
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -167,21 +173,22 @@ def fetch_and_load_earthquake_data(
                     file_path, status = future.result()
                     download_results[current_dt] = (file_path, status)
                     if "error" in status:
-                         print(f"\nError downloading for {current_dt}: {status}")
+                         logging.error(f"Error downloading for {current_dt}: {status}")
                     # Update progress (optional)
-                    print(f"\rDownloaded {processed_count}/{total_to_process} days...", end="")
+                    # Removed progress print, logging start/end and errors instead.
+                    # logging.info(f"Downloaded {processed_count}/{total_to_process} days...") # Example alternative
 
                 except Exception as exc:
-                    print(f'\n{current_dt} generated an exception: {exc}')
+                    logging.error(f'{current_dt} generated an exception: {exc}')
                     download_results[current_dt] = (None, f"error: Exception in thread - {exc}")
-        print("\nFinished parallel download process.")
+        logging.info("Finished parallel download process.")
     else:
-        print("All daily files already exist locally.")
+        logging.info("All daily files already exist locally.")
 
     # --- Load and Concatenate Daily Files ---
     # (Same logic as before, but uses all_expected_files list)
     daily_gdfs = []
-    print("Loading daily GeoJSON files...")
+    logging.info("Loading daily GeoJSON files...")
     loaded_files = 0
     for file_path in all_expected_files: # Load all files expected for the range
         if os.path.exists(file_path):
@@ -198,31 +205,47 @@ def fetch_and_load_earthquake_data(
                         daily_gdfs.append(gdf_day)
                         loaded_files += 1
             except Exception as e:
-                print(f"Error loading GeoDataFrame from {file_path}: {e}")
+                logging.error(f"Error loading GeoDataFrame from {file_path}: {e}")
         # else: # File might be missing if download failed and it didn't exist before
             # print(f"  - File not found (skipped): {os.path.basename(file_path)}")
 
 
     if not daily_gdfs:
-        print("No earthquake data loaded for the specified period.")
+        logging.warning("No earthquake data loaded for the specified period.") # Changed to warning
         return None
 
-    print(f"Concatenating data from {loaded_files} daily files...")
+    logging.info(f"Concatenating data from {loaded_files} daily files...")
     try:
         combined_gdf = pd.concat(daily_gdfs, ignore_index=True)
         if not isinstance(combined_gdf, gpd.GeoDataFrame):
-             print("Error: Concatenation did not result in a GeoDataFrame.")
+             logging.error("Concatenation did not result in a GeoDataFrame.")
              return None
         if combined_gdf.crs is None and daily_gdfs:
              combined_gdf.crs = daily_gdfs[0].crs
 
-        print(f"Successfully loaded and combined {len(combined_gdf)} total earthquakes.")
+        logging.info(f"Successfully loaded and combined {len(combined_gdf)} total earthquakes.")
         # Optional: Filter results strictly within the requested date range
         # combined_gdf = combined_gdf[(combined_gdf['source_date'] >= start_dt) & (combined_gdf['source_date'] <= end_dt)]
         # print(f"Filtered to {len(combined_gdf)} earthquakes within the exact date range.")
+        # --- Reproject to Target CRS ---
+        if combined_gdf.crs is None:
+             logging.warning("Combined GeoDataFrame has no CRS defined. Cannot reproject.")
+        elif combined_gdf.crs != target_crs:
+            logging.info(f"Reprojecting combined earthquake data from {combined_gdf.crs} to {target_crs}...")
+            try:
+                combined_gdf = combined_gdf.to_crs(target_crs)
+                logging.info(f"Reprojection successful. Final CRS: {combined_gdf.crs}")
+            except Exception as e:
+                logging.error(f"Error during final reprojection: {e}")
+                # Decide if we should return None or the unprojected data
+                # Returning None might be safer if projection is critical downstream
+                return None
+        else:
+             logging.info(f"Combined earthquake data is already in target CRS ({target_crs}).")
+
         return combined_gdf
     except Exception as e:
-        print(f"Error during concatenation: {e}")
+        logging.error(f"Error during concatenation: {e}")
         return None
 
 # Example usage
@@ -237,9 +260,9 @@ if __name__ == "__main__":
         force_download=False # Set to True to force redownload for testing
     )
     end_run_time = time.time()
-    print(f"Time taken: {end_run_time - start_run_time:.2f} seconds")
+    logging.info(f"Time taken: {end_run_time - start_run_time:.2f} seconds")
 
     if earthquake_gdf_small_range is not None:
-        print(f"\nLoaded {len(earthquake_gdf_small_range)} earthquakes ({start_test} to {end_test}, M >= 1.0).")
+        logging.info(f"\nLoaded {len(earthquake_gdf_small_range)} earthquakes ({start_test} to {end_test}, M >= 1.0).")
     else:
-        print("\nFailed to load earthquake data for the small range test.")
+        logging.error("\nFailed to load earthquake data for the small range test.")

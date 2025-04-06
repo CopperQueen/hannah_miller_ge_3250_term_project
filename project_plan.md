@@ -29,7 +29,8 @@ hannah_miller_term_project/
 │   ├── data_fetching/          # Sub-package for data acquisition functions
 │   │   ├── __init__.py         # Makes 'data_fetching' a package
 │   │   ├── earthquake_data.py  # Function to fetch USGS earthquake data
-│   │   └── plate_data.py       # Function to fetch and process plate boundary data
+│   │   ├── plate_data.py       # Function to fetch and process plate boundary data
+│   │   └── natural_earth_downloader.py # Function to download Natural Earth boundaries
 │   ├── data_processing.py      # Functions for cleaning, merging, feature extraction & file creation
 │   ├── spatial_analysis.py     # Functions for proximity analysis, feature linking etc.
 │   ├── stream_station_timeseries.py # Functions for seismic time series processing
@@ -39,6 +40,7 @@ hannah_miller_term_project/
 │
 └── resources/                  # Directory for downloaded/saved data & maps
     ├── plate_boundaries/       # Processed plate boundary data (e.g., combined_plate_boundaries.shp)
+    ├── natural_earth_boundaries/ # Downloaded Natural Earth boundary zip files
     ├── earthquake_data/minmagnitude={mag}/ # Downloaded earthquake catalogs by minmagnitude
     ├── seismic_data/           # Raw downloaded seismic waveform data
     ├── feature_files/          # Compressed feature files for ML
@@ -88,6 +90,12 @@ hannah_miller_term_project/
             - Saves the combined data to `resources/plate_boundaries/combined_plate_boundaries.shp`.
             - Cleans up (deletes) the individual extracted shapefile components.
             - Returns the combined GeoDataFrame. Uses `logging`.
+    - [x] **Module:** `functions/data_fetching/natural_earth_downloader.py`
+        - **Function:** `download_natural_earth_boundaries(output_dir='resources/natural_earth_boundaries')`.
+            - Downloads specified Natural Earth boundary datasets (10m Admin 1, 10m Lakes, 50m Countries) as zip files.
+            - Creates the output directory if it doesn't exist.
+            - Saves files to `resources/natural_earth_boundaries/`.
+            - Skips download if files already exist. Uses `logging`.
     - [ ] **Module:** `functions/data_fetching/seismic_data.py` (Placeholder for future implementation)
         - **Function:** `fetch_seismic_data(stations, start_time, end_time, data_dir='resources/seismic_data/')`.
             - Use `obspy` client (e.g., `FDSN client`) to download waveform data for specified stations and time range.

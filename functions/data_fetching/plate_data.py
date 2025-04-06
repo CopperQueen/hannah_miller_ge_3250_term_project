@@ -21,7 +21,7 @@ PLATE_DATA_URL = "https://data.humdata.org/dataset/f2ea5d82-1b04-4d36-8e94-a73a2
 COMBINED_PLATE_FILENAME = "combined_plate_boundaries.shp"
 
 # --- Plate Boundary Function ---
-def load_plate_boundaries() -> gpd.GeoDataFrame | None:
+def load_plate_boundaries(target_crs: str = "EPSG:4326") -> gpd.GeoDataFrame | None:
     """
     Loads tectonic plate boundary data from a shapefile.
 
@@ -31,10 +31,45 @@ def load_plate_boundaries() -> gpd.GeoDataFrame | None:
 
     Data Source: https://data.humdata.org/dataset/tectonic-plate
 
+    Args:
+        target_crs (str): The target Coordinate Reference System for the output GeoDataFrame.
+                          Defaults to "EPSG:4326".
+
     Returns:
-        A GeoDataFrame containing the plate boundary data, or None if fetching/loading fails.
+        A GeoDataFrame containing the plate boundary data projected to the target_crs,
+        or None if fetching/loading fails.
     """
     os.makedirs(PLATE_DATA_DIR, exist_ok=True) # Ensure directory exists
+    combined_shp_path = os.path.join(PLATE_DATA_DIR, COMBINED_PLATE_FILENAME)
+
+    # --- Check 1: Does the combined file already exist? ---
+    if os.path.exists(combined_shp_path):
+        logging.info(f"Found existing combined plate boundary file: {combined_shp_path}")
+        try:
+            combined_gdf = gpd.read_file(combined_shp_path)
+            logging.info(f"Successfully loaded {len(combined_gdf)} features from combined file. CRS: {combined_gdf.crs}")
+
+            # --- Reproject to Final Target CRS (if needed) ---
+            if combined_gdf.crs is None:
+                 logging.warning("Combined plate boundary GeoDataFrame has no CRS defined. Cannot reproject.")
+            elif combined_gdf.crs != target_crs:
+                logging.info(f"Reprojecting combined plate boundary data from {combined_gdf.crs} to {target_crs}...")
+                try:
+                    combined_gdf = combined_gdf.to_crs(target_crs)
+                    logging.info(f"Reprojection successful. Final CRS: {combined_gdf.crs}")
+                except Exception as e:
+                    logging.error(f"Error during final reprojection to {target_crs}: {e}")
+                    return None # Fail if final projection fails
+            else:
+                 logging.info(f"Combined plate boundary data is already in target CRS ({target_crs}).")
+
+            return combined_gdf # Return the loaded and potentially reprojected data
+
+        except Exception as e:
+            logging.error(f"Error loading existing combined shapefile {combined_shp_path}: {e}. Proceeding to download/recreate.")
+            # If loading the existing combined file fails, proceed as if it wasn't there
+
+    # --- Check 2: Do the individual source files exist? ---
     # Define paths for all target shapefiles first
     target_shp_paths = {name: os.path.join(PLATE_DATA_DIR, f"{name}.shp") for name in PLATE_FILENAMES}
     # Check if all target shapefiles exist
@@ -115,7 +150,7 @@ def load_plate_boundaries() -> gpd.GeoDataFrame | None:
     # Load the individual shapefiles and concatenate
     all_gdfs = []
     logging.info("Loading individual shapefiles...")
-    target_crs = None # Store the CRS of the first loaded file
+    initial_crs = None # Store the CRS of the first loaded file to check consistency
     for name, shp_path in target_shp_paths.items():
         try:
             logging.info(f"  Loading {os.path.basename(shp_path)}...")
@@ -123,13 +158,13 @@ def load_plate_boundaries() -> gpd.GeoDataFrame | None:
             logging.info(f"    - Loaded {len(gdf)} features. CRS: {gdf.crs}")
 
             # Store CRS of the first file, check consistency or reproject later ones
-            if target_crs is None:
-                target_crs = gdf.crs
-            elif gdf.crs != target_crs:
-                logging.warning(f"    - CRS mismatch ({gdf.crs} != {target_crs}). Reprojecting...")
+            if initial_crs is None:
+                initial_crs = gdf.crs
+            elif gdf.crs != initial_crs:
+                logging.warning(f"    - CRS mismatch ({gdf.crs} != {initial_crs}). Reprojecting to {initial_crs} for concatenation...")
                 try:
-                    gdf = gdf.to_crs(target_crs)
-                    logging.info(f"    - Reprojected to {target_crs}")
+                    gdf = gdf.to_crs(initial_crs)
+                    logging.info(f"    - Reprojected to {initial_crs}")
                 except Exception as reproj_err:
                     logging.error(f"    - Error reprojecting {os.path.basename(shp_path)}: {reproj_err}. Skipping this file.")
                     continue # Skip this file if reprojection fails
@@ -153,12 +188,12 @@ def load_plate_boundaries() -> gpd.GeoDataFrame | None:
         combined_gdf = pd.concat(all_gdfs, ignore_index=True)
         # Ensure the result is still a GeoDataFrame with the correct CRS
         if not isinstance(combined_gdf, gpd.GeoDataFrame):
-             combined_gdf = gpd.GeoDataFrame(combined_gdf, geometry=gpd.GeoSeries(combined_gdf['geometry']), crs=target_crs)
+             combined_gdf = gpd.GeoDataFrame(combined_gdf, geometry=gpd.GeoSeries(combined_gdf['geometry']), crs=initial_crs)
 
         logging.info(f"Successfully loaded and combined {len(combined_gdf)} total boundary features.")
 
         # --- Save combined GeoDataFrame ---
-        combined_shp_path = os.path.join(PLATE_DATA_DIR, COMBINED_PLATE_FILENAME)
+        # combined_shp_path is already defined earlier
         try:
             logging.info(f"Saving combined shapefile to {combined_shp_path}...")
             combined_gdf.to_file(combined_shp_path, driver='ESRI Shapefile')
@@ -190,7 +225,23 @@ def load_plate_boundaries() -> gpd.GeoDataFrame | None:
             # return None # Option 1: Fail if save fails
             # Option 2: Log error and return gdf anyway (chosen here)
 
-        return combined_gdf # Return the combined dataframe regardless of save/cleanup success
+        # --- Reproject to Final Target CRS ---
+        if combined_gdf.crs is None:
+             logging.warning("Combined plate boundary GeoDataFrame has no CRS defined. Cannot reproject.")
+        elif combined_gdf.crs != target_crs:
+            logging.info(f"Reprojecting combined plate boundary data from {combined_gdf.crs} to {target_crs}...")
+            try:
+                combined_gdf = combined_gdf.to_crs(target_crs)
+                logging.info(f"Reprojection successful. Final CRS: {combined_gdf.crs}")
+            except Exception as e:
+                logging.error(f"Error during final reprojection to {target_crs}: {e}")
+                # Decide if we should return None or the unprojected data
+                return None # Fail if final projection fails
+        else:
+             logging.info(f"Combined plate boundary data is already in target CRS ({target_crs}).")
+
+
+        return combined_gdf # Return the newly created, combined, and potentially reprojected dataframe
 
     except Exception as e:
         logging.error(f"Error during concatenation: {e}")
@@ -209,15 +260,19 @@ if __name__ == "__main__":
 
     if plate_boundaries_gdf is not None:
         logging.info(f"Successfully loaded plate boundaries. CRS: {plate_boundaries_gdf.crs}")
-        # Optionally print head using print() for better formatting if logging level is INFO or lower
-        logger = logging.getLogger() # Get the root logger configured by basicConfig
-        if logger.getEffectiveLevel() <= logging.INFO:
-            print("\nFirst 4 rows of the combined GeoDataFrame (selected columns):")
-            try:
-                # Select columns that are likely to exist based on previous output
-                print(plate_boundaries_gdf[['boundary_type', 'platecode', 'geogdesc', 'geometry']].head(4))
-            except KeyError as e:
-                 print(f"Could not print selected columns due to KeyError: {e}. Printing all columns:")
-                 print(plate_boundaries_gdf.head(4))
+        # Log the first few rows of the dataframe for inspection
+        logging.info("First 4 rows of the combined GeoDataFrame (selected columns):")
+        try:
+            # Select columns and get string representation
+            df_head_str = plate_boundaries_gdf[['boundary_type', 'platecode', 'geogdesc', 'geometry']].head(4).to_string()
+            # Log each line of the string representation
+            for line in df_head_str.splitlines():
+                logging.info(line)
+        except KeyError as e:
+             logging.warning(f"Could not log selected columns due to KeyError: {e}. Logging all columns:")
+             df_head_str = plate_boundaries_gdf.head(4).to_string()
+             # Log each line of the string representation
+             for line in df_head_str.splitlines():
+                 logging.info(line)
     else:
         logging.error("Failed to load plate boundaries.")
