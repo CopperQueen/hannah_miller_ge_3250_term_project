@@ -102,6 +102,7 @@ hannah_miller_term_project/
             - Save raw data locally (e.g., in MiniSEED format) in `data_dir`.
             - Handle potential download errors and data gaps.
             - Return paths to downloaded files or confirmation.
+            - **Testing:** Successfully ran the script's example usage (`if __name__ == '__main__':`) to download the last year of data for default stations.
 
 
 - [ ] **3. Data Processing (`functions/data_processing.py`):**
