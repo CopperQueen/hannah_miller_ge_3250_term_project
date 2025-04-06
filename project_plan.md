@@ -24,7 +24,7 @@ hannah_miller_term_project/
 │
 └── resources/                  # Directory for downloaded/saved data & maps
     ├── plate_boundaries/       # Downloaded plate boundary data (e.g., shapefiles)
-    └── earthquake_data/        # Downloaded earthquake catalogs (optional, if not using API directly)
+    └── earthquake_data/minmagnitude={mag}        # Downloaded earthquake catalogs by minmagnitude
     └── static_maps/            # Saved static map images
 ```
 
