@@ -80,7 +80,7 @@ hannah_miller_term_project/
             - Skips download if daily file exists (unless `force_download=True`).
             - Loads all relevant daily GeoJSON files and concatenates them into a single GeoDataFrame.
             - Handles request errors and manages local file storage. Uses `logging`.
-    - [x] **Module:** `functions/data_fetching/plate_data.py`
+    - [x] **Module:** `functions/data_fetching/plate_data.py` (Refactored with caching & improved CRS handling)
         - **Function:** `load_plate_boundaries()`.
             - Checks for `ridge.shp`, `transform.shp`, `trench.shp` in `resources/plate_boundaries/`.
             - If any are missing, downloads plate boundary zip archive from Humanitarian Data Exchange (HDX).
@@ -170,25 +170,23 @@ hannah_miller_term_project/
     - [ ] **Model Saving:**
         - Save the best performing model(s), associated data scalers, and validation results (including LOYO performance) to `resources/trained_models/`.
 
-- [ ] **6. Visualization (`functions/plotting.py`):**
-    - [ ] **Function:** `plot_static_map(quake_gdf, plate_gdf, seismic_stations_gdf=None, feature_events_gdf=None, ml_predictions_gdf=None, output_path=None, ...)`.
-        - **Core Logic:** Takes processed GeoDataFrames for creating static maps.
-        - Use `matplotlib` with `geopandas.plot()` and potentially `cartopy`.
+- [x] **6. Visualization (`functions/plotting.py`):** (Static map implemented)
+    - [x] **Function:** `plot_earthquake_plate_map(earthquake_gdf, plate_gdf, ne_land_gdf, ne_lakes_gdf, ...)` (Implemented)
+        - **Core Logic:** Generates static map using Matplotlib/GeoPandas showing earthquakes (sized/colored by magnitude), plate boundaries (colored by type), and Natural Earth basemap (land, filtered lakes).
+        - Includes legend, colorbar, title, and robust CRS/area handling for lakes.
         - Create axes with a map projection.
         - Plot plate boundaries.
         - Plot earthquake points (customize markers by magnitude/depth).
-        - *Enhancement:* Plot seismic station locations (if `seismic_stations_gdf` provided).
-        - *Enhancement:* Incorporate visualizations of feature-derived events or ML prediction results (e.g., predicted locations, error vectors).
-        - Customize appearance (colors, sizes, legend, title).
+        - *Future Enhancements:* Plot seismic station locations, ML results, allow Cartopy projections.
         - If `output_path` is provided (e.g., `resources/static_maps/map.png`), save the figure using `plt.savefig()`.
         - Return the Matplotlib axes object.
 
-- [ ] **7. iPython Notebook Assembly (`earthquake_plate_notebook.ipynb`):**
+- [/] **7. iPython Notebook Assembly (`earthquake_plate_notebook.ipynb`):** (Partially complete)
     - [ ] **Structure:** Use Markdown cells extensively to explain each step: introduction, setup, data loading, processing, analysis methods, visualization choices, and conclusions.
     - [ ] **Import Functions:** Import the necessary functions from your `functions` package (e.g., `from functions.data_fetching import load_plate_boundaries`).
     - [ ] **Workflow:**
-        - **Setup & Imports:** Import all necessary functions (e.g., `from functions.data_fetching import fetch_and_load_earthquake_data, load_plate_boundaries`).
-        - **Data Acquisition:** Call functions to fetch/load earthquake and plate data. Call seismic fetching function when implemented.
+        - [x] **Setup & Imports:** Refactored imports, added logging.
+        - [x] **Data Acquisition:** Calls implemented for earthquake, plate, and Natural Earth data.
         - **Data Processing:**
             - Process earthquake and plate data.
             - Process seismic waveforms and extract features.
@@ -205,8 +203,8 @@ hannah_miller_term_project/
             - Perform and document Leave-One-Year-Out (LOYO) cross-validation results.
             - Conduct station robustness experiments and report findings.
             - Run inference on the test set and analyze feature importance.
-        - **Visualization:**
-            - Call `plot_static_map` showing historical quakes, plates, stations.
+        - [x] **Visualization:**
+            - Call `plot_earthquake_plate_map` showing historical quakes, plates, basemap.
             - Create static maps visualizing key ML results (e.g., prediction accuracy, feature importance).
             - Display all maps/plots within the notebook.
     - [ ] **Interpretation:** Include Markdown cells discussing the results, the visual correlation observed, limitations, and potential future work.
