@@ -140,6 +140,34 @@ To enhance Markdown rendering and integrate AI-assisted coding, install the foll
    - Associate the billing account with your API project.
    - Confirm you're on **Tier 1** to avoid rate limits.
 
+5. **Setup Conda (on Windows) Env**
+   - Run in a shell: `winget install -e --id Anaconda.Miniconda3`
+   - Add the following to your windows environmental variables
+        ```
+        %USERPROFILE%\miniconda3\
+        %USERPROFILE%\miniconda3\Library\bin
+        %USERPROFILE%\miniconda3\Scripts
+        ```
+   - Reboot
+   - Test: open powershell and make sure `conda --version` returns a conda version with no error
+   - Install some basic key geospatial libraries in the base conda env `conda install -c conda-forge notebook pandas geopandas requests folium plotly matplotlib shapely cartopy rasterio -y`
+
+6. **Setup git, a git repo, and push code base to it**
+   - `winget install --id Git.Git -e`
+   - Initialize the git repo
+        ```
+        git config --global user.name "Your Name"
+        git config --global user.email "your@email.com"
+        ```
+  - Create `README.md`, commit, and push to the main branch.
+  - Loop through until project finished.
+    - Create branches for each new feature.
+    - Commit each major step and add a comment about what was done.
+    - Push to feature branch. 
+    - Make Pull Request to merge to main.
+    - Review PR.
+    - Merge to main
+
 ---
 
 You’re now ready to begin development with full Markdown support and LLM integration via RooCode and Google Gemini.
