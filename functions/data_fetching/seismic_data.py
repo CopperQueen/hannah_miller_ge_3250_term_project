@@ -2,6 +2,7 @@ import os
 import logging
 import concurrent.futures
 import time
+import calendar # Added for month range calculation
 from datetime import datetime, timedelta, date
 from obspy.clients.fdsn import Client
 from obspy import UTCDateTime
@@ -55,22 +56,33 @@ DEFAULT_STATION_REQUESTS = [
     ('IU', 'RAO', '', 'BHZ'),   # Raoul Island, Kermadec Islands
 ] # Total: 29 stations
 
-# --- Helper Function for Single Station-Day Download ---
-def _download_single_station_day(
+# --- Helper Function for Month Iteration ---
+def month_year_iter(start_month, start_year, end_month, end_year):
+    """ Generator for iterating through months (inclusive). """
+    ym_start= 12*start_year + start_month - 1
+    ym_end= 12*end_year + end_month - 1
+    for ym in range(ym_start, ym_end + 1):
+        y, m = divmod(ym, 12)
+        yield y, m + 1
+
+# --- Helper Function for Single Station-Month Download ---
+def _download_single_station_month(
     client: Client,
     request_tuple: tuple,
-    target_date: date,
+    target_year: int,
+    target_month: int,
     data_dir: str,
     station_inventory: dict, # Pre-fetched inventory { (net, sta): (lon, lat), ... }
     request_delay_seconds: float = 0.1
 ) -> tuple[str | None, str]:
     """
-    Downloads and saves seismic data for a single station on a single day.
+    Downloads and saves seismic data for a single station for a full month.
 
     Args:
         client: Initialized obspy FDSN client.
         request_tuple: (network, station, location, channel) for the request.
-        target_date: The specific date to download data for.
+        target_year: The year to download data for.
+        target_month: The month to download data for.
         data_dir: Base directory for saving seismic data.
         station_inventory: Dictionary containing station coordinates.
         request_delay_seconds: Small delay before making the API request.
@@ -80,9 +92,13 @@ def _download_single_station_day(
     """
     network, station, location, channel = request_tuple
     request_id = f"{network}.{station}.{location}.{channel}" # For logging
-    day_start = UTCDateTime(target_date) # Start of the day
-    day_end = day_start + 86400 - 0.000001 # End of the day (slightly before midnight next day)
-    day_str = target_date.strftime('%Y-%m-%d')
+    # Calculate start and end of the month
+    month_start_dt = datetime(target_year, target_month, 1)
+    _, last_day = calendar.monthrange(target_year, target_month)
+    month_end_dt = datetime(target_year, target_month, last_day, 23, 59, 59, 999999)
+    month_start = UTCDateTime(month_start_dt)
+    month_end = UTCDateTime(month_end_dt)
+    month_str = f"{target_year:04d}-{target_month:02d}"
 
     # Define station-specific directory
     station_dir = os.path.join(data_dir, network, station)
@@ -100,38 +116,38 @@ def _download_single_station_day(
         coord_str = "_lonNA_latNA" # Fallback if coords not found
         # Warning logged in main function if inventory fetch fails
 
-    # Define filename for the day including coordinates
+    # Define filename for the month including coordinates
     loc_fn = location if location else "__" # Use '__' if location code is empty
     chan_fn = channel if channel else "__" # Use '__' if channel code is empty
-    filename = f"{network}.{station}{coord_str}.{loc_fn}.{chan_fn}__{day_str}.mseed"
+    filename = f"{network}.{station}{coord_str}.{loc_fn}.{chan_fn}__{month_str}.mseed"
     filepath = os.path.join(station_dir, filename)
 
     # --- Check if file exists (add force_download logic later if needed) ---
     # This check is now done in the main function before submitting tasks
 
-    logging.debug(f"Requesting data for {request_id} for {day_str}")
+    logging.debug(f"Requesting data for {request_id} for {month_str}")
     try:
         # Add a small delay before each request
         time.sleep(request_delay_seconds)
 
         st = client.get_waveforms(network=network, station=station, location=location, channel=channel,
-                                  starttime=day_start, endtime=day_end)
+                                  starttime=month_start, endtime=month_end)
 
         if not st: # Check if the stream is empty
-            logging.warning(f"No data returned for {request_id} for {day_str}.")
+            logging.warning(f"No data returned for {request_id} for {month_str}.")
             return None, "no_data"
 
-        # Save the stream to the daily file
+        # Save the stream to the monthly file
         logging.debug(f"Saving data to {filepath}")
         st.write(filepath, format="MSEED")
         return filepath, "success"
 
     except FDSNNoDataException:
-        logging.warning(f"No data found via FDSN for {request_id} for {day_str}.")
+        logging.warning(f"No data found via FDSN for {request_id} for {month_str}.")
         return None, "no_data_fdsn"
     except Exception as e:
         # Log only the error message for cleaner concurrent output
-        logging.error(f"Failed download/process for {request_id} on {day_str}: {e}")
+        logging.error(f"Failed download/process for {request_id} on {month_str}: {e}")
         return None, f"error: {e}"
 
 
@@ -146,9 +162,9 @@ def fetch_seismic_data(
     force_download: bool = False # Add option to force re-download
     ) -> list[str]:
     """
-    Fetches seismic waveform data from an FDSN client day-by-day for multiple stations
+    Fetches seismic waveform data from an FDSN client month-by-month for multiple stations
     using parallel downloads. Saves data locally in MiniSEED format, organized by
-    network and station, with coordinates in the filename.
+    network and station, with coordinates in the filename (YYYY-MM format).
 
     Args:
         start_date: Start date (inclusive). Accepts YYYY-MM-DD string or date object.
@@ -228,11 +244,12 @@ def fetch_seismic_data(
         # Continue without coordinates if inventory fails
 
     # --- Prepare Download Tasks ---
-    all_dates_in_range = [start_dt + timedelta(days=i) for i in range((end_dt - start_dt).days + 1)]
     tasks_to_run = []
     expected_files = [] # Keep track of all files we expect/process
+    # Generate month/year combinations in the range
+    all_months_in_range = list(month_year_iter(start_dt.month, start_dt.year, end_dt.month, end_dt.year))
 
-    for target_date in all_dates_in_range:
+    for target_year, target_month in all_months_in_range:
         for request_tuple in station_requests:
             # Calculate expected filepath for checking existence or adding to final list
             network, station, location, channel = request_tuple
@@ -247,35 +264,35 @@ def fetch_seismic_data(
                 coord_str = "_lonNA_latNA"
             loc_fn = location if location else "*"
             chan_fn = channel if channel else "*"
-            day_str = target_date.strftime('%Y-%m-%d')
-            filename = f"{network}.{station}{coord_str}.{loc_fn}.{chan_fn}__{day_str}.mseed"
+            month_str = f"{target_year:04d}-{target_month:02d}"
+            filename = f"{network}.{station}{coord_str}.{loc_fn}.{chan_fn}__{month_str}.mseed"
             filepath = os.path.join(station_dir, filename)
             expected_files.append(filepath)
 
             # Decide if download is needed
             if force_download or not os.path.exists(filepath):
-                 tasks_to_run.append((request_tuple, target_date, filepath)) # Pass filepath to task
+                 tasks_to_run.append((request_tuple, target_year, target_month, filepath)) # Pass filepath to task
             # else:
             #     logging.debug(f"File exists, skipping task creation: {filepath}")
 
     # --- Parallel Download Execution ---
     successful_downloads = [] # Store paths of successfully created/verified files
     if tasks_to_run:
-        logging.info(f"Need to download/check data for {len(tasks_to_run)} station-day combinations (using up to {max_workers} workers)...")
+        logging.info(f"Need to download/check data for {len(tasks_to_run)} station-month combinations (using up to {max_workers} workers)...")
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-            # Pass client, request_tuple, target_date, data_dir, station_inventory to helper
+            # Pass client, request_tuple, target_year, target_month, data_dir, station_inventory to helper
             future_to_task = {
                 executor.submit(
-                    _download_single_station_day,
-                    client, task[0], task[1], data_dir, station_inventory
-                ): task # task is (request_tuple, target_date, filepath)
+                    _download_single_station_month,
+                    client, task[0], task[1], task[2], data_dir, station_inventory # task[0]=req, task[1]=year, task[2]=month
+                ): task # task is (request_tuple, target_year, target_month, filepath)
                 for task in tasks_to_run
             }
             processed_count = 0
             total_to_process = len(tasks_to_run)
             for future in concurrent.futures.as_completed(future_to_task):
-                task_info = future_to_task[future] # (request_tuple, target_date, filepath)
-                original_filepath = task_info[2] # Get the expected filepath
+                task_info = future_to_task[future] # (request_tuple, target_year, target_month, filepath)
+                original_filepath = task_info[3] # Get the expected filepath
                 processed_count += 1
                 try:
                     filepath_result, status = future.result()
@@ -291,11 +308,12 @@ def fetch_seismic_data(
 
                 except Exception as exc:
                     req_tuple_log = task_info[0]
-                    date_log = task_info[1]
-                    logging.error(f'Task ({req_tuple_log}, {date_log}) generated an exception: {exc}')
+                    year_log = task_info[1]
+                    month_log = task_info[2]
+                    logging.error(f'Task ({req_tuple_log}, {year_log}-{month_log:02d}) generated an exception: {exc}')
         logging.info("Finished parallel download process.")
     else:
-        logging.info("All required daily files already exist locally (and force_download=False).")
+        logging.info("All required monthly files already exist locally (and force_download=False).")
 
     # --- Final File List ---
     # Combine newly downloaded files with existing files that were skipped but should be included
@@ -306,10 +324,10 @@ def fetch_seismic_data(
 
 if __name__ == '__main__':
     # Example usage: Fetch data for default stations for the last week
-    logging.info("Running example: Fetching seismic data for default stations for the last week...")
+    logging.info("Running example: Fetching seismic data for default stations for the last year (monthly)...")
 
     end_run_date = date.today() - timedelta(days=1) # Yesterday
-    start_run_date = end_run_date - timedelta(days=365*1) # One week before end date
+    start_run_date = end_run_date - timedelta(days=365*1) # One year before end date
 
     start_time_exec = time.time()
     try:
