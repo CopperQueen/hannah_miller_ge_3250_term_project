@@ -1,10 +1,17 @@
+# Project Goal
+
+***Question to answer:***
+"Is there a quantifiable correlation between earthquake magnitude and the distance from the nearest fault line, and does this relationship vary by fault type? Specifically, can earthquake magnitude be used to predict proximity to a fault line, or vice versa?"
+
+----
+
 # Project Plan: Interactive Earthquake and Tectonic Plate Visualization
 
 [Back to Main README](./README.md)
 
 This document outlines the steps to create an interactive visualization project combining earthquake data and tectonic plate boundaries using Python, primarily within an iPython Notebook environment. 
 
-## Project Goal
+
 
 The primary goal is to analyze the spatial relationship between historical earthquake occurrences and tectonic plate boundaries. This involves:
 
