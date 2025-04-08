@@ -1,4 +1,9 @@
 import pandas as pd 
+from shapely.geometry import Point
+import geopandas as gpd
+import math
+import swifter # Import swifter
+import logging # Make sure logging is configured elsewhere
 
 """
 Functions for processing and cleaning earthquake and plate data.
