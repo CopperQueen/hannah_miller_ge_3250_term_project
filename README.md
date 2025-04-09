@@ -1,5 +1,5 @@
 <div style="text-align: center;">
-  <img src="resources/images/project_mascot.png" alt="mascot" style="width: 150px;"/>
+  <img src="resources/images/project_mascot.png" alt="mascot" style="width: 300px;"/>
 </div>
 
 # 🌍 Earthquake and Tectonic Plate Visualization and Analysis 🌋
