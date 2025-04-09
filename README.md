@@ -1,3 +1,7 @@
+<div style="text-align: center;">
+  <img src="resources/images/project_mascot.png" alt="mascot" style="width: 150px;"/>
+</div>
+
 # 🌍 Earthquake and Tectonic Plate Visualization and Analysis 🌋
 
 *Author: 👩‍💻 ***Hannah Miller*** (hannahm@mtu.edu)*
