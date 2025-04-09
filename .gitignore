@@ -1,2 +1,9 @@
 # Ignore everything in the resources directory
 resources/
+
+# Ignore roomodes files
+.roomodes
+
+# Ignore Python cache files
+*.pyc
+__pycache__/

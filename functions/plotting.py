@@ -178,7 +178,9 @@ def plot_earthquake_plate_map(
 
     # --- 4. Customize Plot ---
     # Construct title
-    title = f'Global Earthquakes (M ≥ {min_magnitude})'
+    # Use actual min magnitude from the plotted data if available
+    actual_min_mag_str = f"{min_mag_plot:.1f}" if 'min_mag_plot' in locals() else f"{min_magnitude} (input)"
+    title = f'Global Earthquakes (M ≥ {actual_min_mag_str})'
     if start_date and end_date:
         title += f' from {start_date} to {end_date}'
     elif start_date:
@@ -207,6 +209,16 @@ def plot_earthquake_plate_map(
                  "Lakes are plotted using their original WGS 84 (EPSG:4326) coordinates.")
     # Place text slightly above the bottom edge, centered horizontally
     fig.text(0.5, 0.01, lake_note, ha='center', va='bottom', fontsize='x-small', style='italic', color='dimgray', wrap=True)
+
+    # Add data source citations with links
+    citation_text = (
+        "Data Sources:\n"
+        "Earthquakes: USGS FDSNWS (earthquake.usgs.gov/fdsnws/event/1/)\n"
+        "Boundaries: Natural Earth (naturalearthdata.com)\n"
+        "Plates: HDX (data.humdata.org/dataset/tectonic-plates-boundaries)" # Simplified link for brevity
+    )
+    fig.text(0.98, 0.01, citation_text, ha='right', va='bottom', fontsize='xx-small', style='italic', color='dimgray', wrap=True)
+
 
     plt.show()
     logging.info("Plot displayed.")
